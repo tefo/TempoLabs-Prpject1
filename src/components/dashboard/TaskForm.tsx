@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Tables } from "@/types/supabase";
+import { createTask, updateTask, getContacts } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,7 +49,18 @@ const defaultFormData: TaskFormData = {
 };
 
 const TaskForm = ({
-  onSubmit = console.log,
+  onSubmit = async (data) => {
+    try {
+      if (initialData?.id) {
+        await updateTask(initialData.id, data);
+      } else {
+        await createTask(data);
+      }
+      console.log(data);
+    } catch (error) {
+      console.error("Error saving task:", error);
+    }
+  },
   initialData = defaultFormData,
   isOpen = true,
 }: TaskFormProps) => {
@@ -61,11 +74,19 @@ const TaskForm = ({
 
   const [date, setDate] = React.useState<Date | undefined>(new Date());
 
-  const mockContacts = [
-    { id: "1", name: "John Doe" },
-    { id: "2", name: "Jane Smith" },
-    { id: "3", name: "Mike Johnson" },
-  ];
+  const [contacts, setContacts] = useState<Tables<"contacts">[]>([]);
+
+  useEffect(() => {
+    async function loadContacts() {
+      try {
+        const data = await getContacts();
+        setContacts(data);
+      } catch (error) {
+        console.error("Error loading contacts:", error);
+      }
+    }
+    loadContacts();
+  }, []);
 
   return (
     <Card className="w-full max-w-2xl p-6 bg-white shadow-lg rounded-lg">
@@ -151,9 +172,9 @@ const TaskForm = ({
               <SelectValue placeholder="Select contact" />
             </SelectTrigger>
             <SelectContent>
-              {mockContacts.map((contact) => (
+              {contacts.map((contact) => (
                 <SelectItem key={contact.id} value={contact.id}>
-                  {contact.name}
+                  {`${contact.first_name} ${contact.last_name}`}
                 </SelectItem>
               ))}
             </SelectContent>

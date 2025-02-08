@@ -9,15 +9,16 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar, Clock, Plus, User } from "lucide-react";
 import { format } from "date-fns";
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: "pending" | "in-progress" | "completed";
-  dueDate: Date;
-  assignedTo: string;
-  priority: "low" | "medium" | "high";
-}
+import { Tables } from "@/types/supabase";
+import { useEffect, useState } from "react";
+import { getTasks, updateTask, deleteTask } from "@/lib/api";
+
+type Task = Tables<"tasks"> & {
+  contacts: {
+    first_name: string;
+    last_name: string;
+  } | null;
+};
 
 interface TaskListProps {
   tasks?: Task[];
@@ -25,35 +26,7 @@ interface TaskListProps {
   onTaskDelete?: (taskId: string) => void;
 }
 
-const defaultTasks: Task[] = [
-  {
-    id: "1",
-    title: "Complete Project Proposal",
-    description: "Draft and finalize the Q2 project proposal",
-    status: "in-progress",
-    dueDate: new Date("2024-04-15"),
-    assignedTo: "John Doe",
-    priority: "high",
-  },
-  {
-    id: "2",
-    title: "Client Meeting",
-    description: "Prepare presentation for client meeting",
-    status: "pending",
-    dueDate: new Date("2024-04-20"),
-    assignedTo: "Jane Smith",
-    priority: "medium",
-  },
-  {
-    id: "3",
-    title: "Review Documentation",
-    description: "Review and update system documentation",
-    status: "completed",
-    dueDate: new Date("2024-04-10"),
-    assignedTo: "Mike Johnson",
-    priority: "low",
-  },
-];
+const defaultTasks: Task[] = [];
 
 const priorityColors = {
   low: "bg-blue-100 text-blue-800",
@@ -67,11 +40,42 @@ const statusColors = {
   completed: "bg-green-100 text-green-800",
 };
 
-export default function TaskList({
-  tasks = defaultTasks,
-  onTaskUpdate = () => {},
-  onTaskDelete = () => {},
-}: TaskListProps) {
+export default function TaskList() {
+  const [tasks, setTasks] = useState<Task[]>(defaultTasks);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  async function loadTasks() {
+    try {
+      const data = await getTasks();
+      setTasks(data);
+    } catch (error) {
+      console.error("Error loading tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleTaskUpdate(taskId: string, updates: Partial<Task>) {
+    try {
+      await updateTask(taskId, updates);
+      await loadTasks();
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
+  }
+
+  async function handleTaskDelete(taskId: string) {
+    try {
+      await deleteTask(taskId);
+      await loadTasks();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
+  }
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = React.useState(false);
 
   const handleTaskSubmit = (data: any) => {
@@ -108,7 +112,7 @@ export default function TaskList({
                     <Checkbox
                       checked={task.status === "completed"}
                       onCheckedChange={() =>
-                        onTaskUpdate(task.id, {
+                        handleTaskUpdate(task.id, {
                           status:
                             task.status === "completed"
                               ? "pending"
@@ -148,7 +152,9 @@ export default function TaskList({
                     </div>
                     <div className="flex items-center">
                       <User className="w-4 h-4 mr-1" />
-                      {task.assignedTo}
+                      {task.contacts
+                        ? `${task.contacts.first_name} ${task.contacts.last_name}`
+                        : "Unassigned"}
                     </div>
                   </div>
                 </div>

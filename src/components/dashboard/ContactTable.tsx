@@ -14,16 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Edit, Trash2, Plus } from "lucide-react";
 import ContactForm from "./ContactForm";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Tables } from "@/types/supabase";
+import { useEffect, useState } from "react";
+import { getContacts, deleteContact, getCompanies } from "@/lib/api";
 
-interface Contact {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  company: string;
-  jobTitle: string;
-}
+type Contact = Tables<"contacts"> & {
+  companies: { name: string } | null;
+};
 
 interface ContactTableProps {
   contacts?: Contact[];
@@ -32,49 +29,66 @@ interface ContactTableProps {
   onSearch?: (query: string) => void;
 }
 
-const defaultContacts: Contact[] = [
-  {
-    id: "1",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 000-0000",
-    company: "Acme Corp",
-    jobTitle: "Software Engineer",
-  },
-  {
-    id: "2",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@example.com",
-    phone: "+1 (555) 000-0001",
-    company: "Globex Corporation",
-    jobTitle: "Product Manager",
-  },
-  {
-    id: "3",
-    firstName: "Mike",
-    lastName: "Johnson",
-    email: "mike.johnson@example.com",
-    phone: "+1 (555) 000-0002",
-    company: "Soylent Corp",
-    jobTitle: "Sales Director",
-  },
-];
-
 export default function ContactTable({
-  contacts = defaultContacts,
   onEdit = () => {},
-  onDelete = () => {},
   onSearch = () => {},
 }: ContactTableProps) {
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [companies, setCompanies] = useState<Tables<"companies">[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    loadContacts();
+    loadCompanies();
+  }, []);
+
+  async function loadCompanies() {
+    try {
+      const data = await getCompanies();
+      setCompanies(data);
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    }
+  }
+
+  async function loadContacts() {
+    try {
+      const data = await getContacts();
+      setContacts(data);
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteContact(id);
+      await loadContacts();
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+    }
+  }
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
     onSearch(query);
+  };
+
+  const filteredContacts = contacts.filter(
+    (contact) =>
+      contact.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.email?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const handleContactSubmit = async (data: any) => {
+    await loadContacts();
+    setIsDialogOpen(false);
   };
 
   return (
@@ -91,10 +105,8 @@ export default function ContactTable({
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <ContactForm
-                onSubmit={(data) => {
-                  console.log("New contact:", data);
-                  setIsDialogOpen(false);
-                }}
+                onSubmit={handleContactSubmit}
+                companies={companies}
               />
             </DialogContent>
           </Dialog>
@@ -126,37 +138,53 @@ export default function ContactTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell>
-                    {contact.firstName} {contact.lastName}
-                  </TableCell>
-                  <TableCell>{contact.email}</TableCell>
-                  <TableCell>{contact.phone}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{contact.company}</Badge>
-                  </TableCell>
-                  <TableCell>{contact.jobTitle}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(contact)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onDelete(contact.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    Loading...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredContacts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    No contacts found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredContacts.map((contact) => (
+                  <TableRow key={contact.id}>
+                    <TableCell>
+                      {contact.first_name} {contact.last_name}
+                    </TableCell>
+                    <TableCell>{contact.email}</TableCell>
+                    <TableCell>{contact.phone}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {contact.companies?.name || "No Company"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{contact.job_title}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEdit(contact)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(contact.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>

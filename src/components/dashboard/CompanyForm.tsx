@@ -1,4 +1,6 @@
 import React from "react";
+import { Tables } from "@/types/supabase";
+import { createCompany, updateCompany } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -51,8 +53,17 @@ export default function CompanyForm({
     defaultValues: { ...defaultValues, ...initialData },
   });
 
-  const handleSubmit = (data: CompanyFormData) => {
-    onSubmit(data);
+  const handleSubmit = async (data: CompanyFormData) => {
+    try {
+      if (isEdit && initialData.id) {
+        await updateCompany(initialData.id, data);
+      } else {
+        await createCompany(data);
+      }
+      onSubmit(data);
+    } catch (error) {
+      console.error("Error saving company:", error);
+    }
   };
 
   return (

@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Tables } from "@/types/supabase";
+import { createContact, updateContact, getCompanies } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -37,14 +39,21 @@ interface ContactFormProps {
   isOpen?: boolean;
 }
 
-const defaultCompanies = [
-  { id: "1", name: "Acme Corp" },
-  { id: "2", name: "Globex Corporation" },
-  { id: "3", name: "Soylent Corp" },
-];
+const defaultCompanies: Tables<"companies">[] = [];
 
 export default function ContactForm({
-  onSubmit = (data) => console.log(data),
+  onSubmit = async (data) => {
+    try {
+      if (initialData?.id) {
+        await updateContact(initialData.id, data);
+      } else {
+        await createContact(data);
+      }
+      console.log(data);
+    } catch (error) {
+      console.error("Error saving contact:", error);
+    }
+  },
   companies = defaultCompanies,
   initialData = {
     firstName: "",
