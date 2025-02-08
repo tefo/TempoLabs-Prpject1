@@ -44,12 +44,20 @@ const defaultCompanies: Tables<"companies">[] = [];
 export default function ContactForm({
   onSubmit = async (data) => {
     try {
+      const contactData = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        company_id: data.company,
+        job_title: data.jobTitle,
+      };
+
       if (initialData?.id) {
-        await updateContact(initialData.id, data);
+        await updateContact(initialData.id, contactData);
       } else {
-        await createContact(data);
+        await createContact(contactData);
       }
-      console.log(data);
     } catch (error) {
       console.error("Error saving contact:", error);
     }

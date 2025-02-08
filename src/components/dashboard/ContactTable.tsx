@@ -16,7 +16,12 @@ import ContactForm from "./ContactForm";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tables } from "@/types/supabase";
 import { useEffect, useState } from "react";
-import { getContacts, deleteContact, getCompanies } from "@/lib/api";
+import {
+  getContacts,
+  deleteContact,
+  getCompanies,
+  createContact,
+} from "@/lib/api";
 
 type Contact = Tables<"contacts"> & {
   companies: { name: string } | null;
@@ -87,8 +92,21 @@ export default function ContactTable({
   );
 
   const handleContactSubmit = async (data: any) => {
-    await loadContacts();
-    setIsDialogOpen(false);
+    try {
+      const contactData = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        company_id: data.company,
+        job_title: data.jobTitle,
+      };
+      await createContact(contactData);
+      await loadContacts();
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error creating contact:", error);
+    }
   };
 
   return (

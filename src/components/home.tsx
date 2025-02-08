@@ -16,6 +16,29 @@ export default function Home({
   onThemeToggle = () => console.log("Theme toggled"),
   onLogout = () => console.log("Logout clicked"),
 }: HomeProps) {
+  const location = window.location.pathname;
+
+  const renderContent = () => {
+    switch (location) {
+      case "/companies":
+        return <CompanyTable />;
+      case "/contacts":
+        return <ContactTable />;
+      case "/tasks":
+        return <TaskList />;
+      case "/settings":
+        return <div className="text-2xl">Settings Page (Coming Soon)</div>;
+      default:
+        return (
+          <div className="grid grid-cols-1 gap-8">
+            <CompanyTable />
+            <ContactTable />
+            <TaskList />
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar
@@ -24,11 +47,7 @@ export default function Home({
         onLogout={onLogout}
       />
       <main className="flex-1 overflow-auto p-8 space-y-8">
-        <div className="grid grid-cols-1 gap-8">
-          <CompanyTable />
-          <ContactTable />
-          <TaskList />
-        </div>
+        {renderContent()}
         <Outlet />
       </main>
     </div>
